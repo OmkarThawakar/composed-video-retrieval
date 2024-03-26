@@ -1,6 +1,6 @@
 <!-- <div align="center"> -->
 
-# 🎥 ➕ 📝 ➡️ 🎥 Composed Video Retrieval via Enriched Context and Discriminative Embeddings (CVPR-2024)
+# 🎥 ➕ 📝 ➡️ 🎥 Composed Video Retrieval via Enriched Context and Discriminative Embeddings [CVPR-2024]
 
 <p align="center">
    <a href="https://github.com/mbzuai-oryx/MobiLlama/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="license"></a>
@@ -11,7 +11,7 @@
 
 #### **Mohamed Bin Zayed University of Artificial Intelligence (MBZUAI), UAE**
 
-
+[![paper](https://img.shields.io/badge/arXiv-Paper-<COLOR>.svg)](https://arxiv.org/abs/2403.16997)
 [![GitHub Stars](https://img.shields.io/github/stars/OmkarThawakar/composed-video-retrieval?style=social)](https://github.com/OmkarThawakar/composed-video-retrieval)
 
 
@@ -169,5 +169,11 @@ Use `slurm_train.sh` and `slurm_test.sh` in case of slurm setting.
 ## Citation
 
 ```bibtex
+  @article{thawakar2024composed,
+          title={Composed Video Retrieval via Enriched Context and Discriminative Embeddings},
+          author={Omkar Thawakar and Muzammal Naseer and Rao Muhammad Anwer and Salman Khan and Michael Felsberg and Mubarak Shah and Fahad Shahbaz Khan},
+          journal={The IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+          year={2024}
+  }
 
 ```
