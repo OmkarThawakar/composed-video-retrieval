@@ -24,6 +24,7 @@ class WebVidCoVRDataModule(LightningDataModule):
         annotation: dict = {"train": "", "val": ""},
         vid_dirs: dict = {"train": "", "val": ""},
         emb_dirs: dict = {"train": "", "val": ""},
+        mm_emb_dirs: dict = {"train": "", "val": ""},
         image_size: int = 384,
         emb_pool: str = "query",
         iterate: str = "pth2",
@@ -52,6 +53,7 @@ class WebVidCoVRDataModule(LightningDataModule):
             annotation=annotation["train"],
             vid_dir=vid_dirs["train"],
             emb_dir=emb_dirs["train"],
+            mm_emb_dir=mm_emb_dirs["train"],
             split="train",
             emb_pool=self.emb_pool,
             iterate=self.iterate,
@@ -63,6 +65,7 @@ class WebVidCoVRDataModule(LightningDataModule):
             annotation=annotation["val"],
             vid_dir=vid_dirs["val"],
             emb_dir=emb_dirs["val"],
+            mm_emb_dir=mm_emb_dirs["val"],
             split="val",
             emb_pool=self.emb_pool,
             iterate=self.iterate,
@@ -103,6 +106,7 @@ class WebVidCoVRTestDataModule(LightningDataModule):
         annotation: str,
         vid_dirs: str,
         emb_dirs: str,
+        mm_emb_dirs:str,
         num_workers: int = 4,
         pin_memory: bool = True,
         image_size: int = 384,
@@ -130,6 +134,7 @@ class WebVidCoVRTestDataModule(LightningDataModule):
             annotation=annotation,
             vid_dir=vid_dirs,
             emb_dir=emb_dirs,
+            mm_emb_dir=mm_emb_dirs,
             split="test",
             emb_pool=self.emb_pool,
             iterate=self.iterate,
@@ -155,6 +160,7 @@ class WebVidCoVRDataset(Dataset):
         annotation: str,
         vid_dir: str,
         emb_dir: str,
+        mm_emb_dir:str,
         split: str,
         max_words: int = 30,
         emb_pool: str = "query",
@@ -172,8 +178,10 @@ class WebVidCoVRDataset(Dataset):
 
         self.vid_dir = Path(vid_dir)
         self.emb_dir = Path(emb_dir)
+        self.mm_emb_dir = Path(mm_emb_dir)
         assert self.vid_dir.exists(), f"Image directory {self.vid_dir} does not exist"
         assert self.emb_dir.exists(), f"Embedding directory {emb_dir} does not exist"
+        assert self.mm_emb_dir.exists(), f"Multimodel Embedding directory {emb_dir} does not exist"
 
         assert split in [
             "train",
@@ -184,6 +192,7 @@ class WebVidCoVRDataset(Dataset):
 
         vid_pths = self.vid_dir.glob("*/*.mp4")
         emb_pths = self.emb_dir.glob("*/*.pth")
+        mm_emb_pths = self.mm_emb_dir.glob("*/*.pth")
 
         id2vidpth = {
             vid_pth.parent.stem + "/" + vid_pth.stem: vid_pth for vid_pth in vid_pths
@@ -191,12 +200,17 @@ class WebVidCoVRDataset(Dataset):
         id2embpth = {
             emb_pth.parent.stem + "/" + emb_pth.stem: emb_pth for emb_pth in emb_pths
         }
+        id2mmembpth = {
+            mm_emb_pth.parent.stem + "/" + mm_emb_pth.stem: mm_emb_pth for mm_emb_pth in mm_emb_pths
+        }
 
         assert len(id2vidpth) > 0, f"No videos found in {vid_dir}"
         assert len(id2embpth) > 0, f"No embeddings found in {emb_dir}"
+        assert len(id2mmembpth) > 0, f"No embeddings found in {emb_dir}"
 
         self.df["path1"] = self.df["pth1"].apply(lambda x: id2vidpth.get(x, None))  # type: ignore
         self.df["path2"] = self.df["pth2"].apply(lambda x: id2embpth.get(x, None))  # type: ignore
+        self.df["mmembpath"] = self.df["pth2"].apply(lambda x: id2mmembpth.get(x, None))  # type: ignore
 
         # Count unique missing paths
         missing_pth1 = self.df[self.df["path1"].isna()]["pth1"].unique().tolist()
@@ -229,6 +243,7 @@ class WebVidCoVRDataset(Dataset):
         # Remove missing paths
         self.df = self.df[self.df["path1"].notna()]
         self.df = self.df[self.df["path2"].notna()]
+        self.df = self.df[self.df["mmembpath"].notna()]
         self.df.reset_index(drop=True, inplace=True)
 
         self.max_words = max_words
@@ -296,6 +311,13 @@ class WebVidCoVRDataset(Dataset):
 
         target_pth = str(ann["path2"])
         target_emb = torch.load(target_pth).cpu()
+
+        target_pth_mmemb = str(ann["mmembpath"])
+        target_mmemb = torch.load(target_pth_mmemb).cpu()
+
+        description = str(ann["caption"])
+        webvid_caption = str(ann["txt1"])
+
         if self.emb_pool == "middle":
             target_emb = target_emb[len(target_emb) // 2]
         elif self.emb_pool == "mean":
@@ -307,5 +329,6 @@ class WebVidCoVRDataset(Dataset):
             vid_scores = torch.Tensor(vid_scores)
             vid_scores = (vid_scores / 0.1).softmax(dim=0)
             target_emb = torch.einsum("f,fe->e", vid_scores, target_emb)
+            target_mmemb = torch.einsum("f,fe->e", vid_scores, target_mmemb)
 
-        return reference_vid, target_emb, caption, index
+        return reference_vid, target_emb, caption, index, target_mmemb, description, webvid_caption
